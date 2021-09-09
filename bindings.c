@@ -1096,10 +1096,10 @@ void set_bindings(void)
 	tern_free(special);
 	
 	memset(mice, 0, sizeof(mice));
-	tern_node * mice = tern_find_path(config, "bindings\0mice\0", TVAL_NODE).ptrval;
-	if (mice) {
+	tern_node * mice_ptr = tern_find_path(config, "bindings\0mice\0", TVAL_NODE).ptrval;
+	if (mice_ptr) {
 		tern_node *buttonmaps[2] = {padbuttons, mousebuttons};
-		tern_foreach(mice, process_mouse, buttonmaps);
+		tern_foreach(mice_ptr, process_mouse, buttonmaps);
 	}
 	tern_node * speed_nodes = tern_find_path(config, "clocks\0speeds\0", TVAL_NODE).ptrval;
 	speeds = malloc(sizeof(uint32_t));
