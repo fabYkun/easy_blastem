@@ -57,6 +57,7 @@ enum {
 	SYNC_EXTERNAL
 };
 
+static uint8_t auto_resized;
 static uint8_t sync_src;
 static uint32_t min_buffered;
 
@@ -511,12 +512,20 @@ static void render_quit()
 #endif
 }
 
+static uint32_t overscan_top[NUM_VID_STD] = {2, 21};
+static uint32_t overscan_bot[NUM_VID_STD] = {1, 17};
+static uint32_t overscan_left[NUM_VID_STD] = {13, 13};
+static uint32_t overscan_right[NUM_VID_STD] = {14, 14};
+static vid_std video_standard = VID_NTSC;
+uint8_t stretch_config = 0;
+
 static float config_aspect()
 {
 	static float aspect = 0.0f;
-	if (aspect == 0.0f) {
+	if (aspect == 0.0f || stretch_config == CONFIG_ASPECT_REFRESH) {
 		char *config_aspect = tern_find_path_default(config, "video\0aspect\0", (tern_val){.ptrval = "4:3"}, TVAL_PTR).ptrval;
 		if (strcmp("stretch", config_aspect)) {
+			stretch_config = CONFIG_ASPECT_4_3;
 			aspect = 4.0f/3.0f;
 			char *end;
 			float aspect_numerator = strtof(config_aspect, &end);
@@ -527,7 +536,16 @@ static float config_aspect()
 				}
 			}
 		} else {
+			stretch_config = CONFIG_ASPECT_STRETCH;
 			aspect = -1.0f;
+		}
+
+		if (stretch_config) {
+			overscan_top[VID_NTSC] = 11;
+			overscan_bot[VID_NTSC] = 8;
+		} else {
+			overscan_top[VID_NTSC] = 2;
+			overscan_bot[VID_NTSC] = 1;
 		}
 	}
 	return aspect;
@@ -543,6 +561,7 @@ static void update_aspect()
 	main_clip.h = main_height;
 	main_clip.x = main_clip.y = 0;
 	if (config_aspect() > 0.0f) {
+		overlay_resize();
 		float aspect = (float)main_width / main_height;
 		if (fabs(aspect - config_aspect()) < 0.01f) {
 			//close enough for government work
@@ -772,11 +791,6 @@ void render_enable_gamepad_events(uint8_t enabled)
 	}
 }
 
-static uint32_t overscan_top[NUM_VID_STD] = {2, 21};
-static uint32_t overscan_bot[NUM_VID_STD] = {1, 17};
-static uint32_t overscan_left[NUM_VID_STD] = {13, 13};
-static uint32_t overscan_right[NUM_VID_STD] = {14, 14};
-static vid_std video_standard = VID_NTSC;
 static uint8_t need_ui_fb_resize;
 
 int lock_joystick_index(int joystick, int desired_index)
@@ -879,9 +893,10 @@ static int32_t handle_event(SDL_Event *event)
 			if (!main_window) {
 				break;
 			}
-			main_width = event->window.data1;
-			main_height = event->window.data2;
 			need_ui_fb_resize = 1;
+			main_width = MAX(event->window.data1, WIN_MIN_WIDTH);
+			main_height = MAX(event->window.data2, WIN_MIN_HEIGHT);
+			stretch_config = CONFIG_ASPECT_REFRESH;
 			update_aspect();
 #ifndef DISABLE_OPENGL
 			if (render_gl) {
@@ -1035,6 +1050,7 @@ void window_setup(void)
 		vsync = "on";
 	}
 	
+	/*
 	tern_node *video = tern_find_node(config, "video");
 	if (video)
 	{
@@ -1061,6 +1077,7 @@ void window_setup(void)
 			}
 		}
 	}
+	*/
 	render_gl = 0;
 	
 #ifndef DISABLE_OPENGL
@@ -1145,6 +1162,7 @@ void window_setup(void)
 #endif
 
 	SDL_GetWindowSize(main_window, &main_width, &main_height);
+	SDL_SetWindowMinimumSize(main_window, WIN_MIN_WIDTH, WIN_MIN_HEIGHT);
 	debug_message("Window created with size: %d x %d\n", main_width, main_height);
 	update_aspect();
 	render_alloc_surfaces();
@@ -1223,6 +1241,7 @@ static int in_toggle;
 
 void render_config_updated(void)
 {
+	stretch_config = CONFIG_ASPECT_REFRESH;
 	free_surfaces();
 #ifndef DISABLE_OPENGL
 	if (render_gl) {

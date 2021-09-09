@@ -8,9 +8,22 @@
 #include "tern.h"
 #include "system.h"
 
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a,b) ((a) < (b) ? (b) : (a))
+#endif
+
 tern_node *parse_config_file(char *config_path);
 tern_node *parse_bundled_config(char *config_name);
 tern_node *load_overrideable_config(char *name, char *bundled_name, uint8_t *used_config_dir);
+extern uint8_t custom_blastem_config;
+extern uint8_t custom_controller_config;
+enum { WIN_MIN_WIDTH = 640, WIN_MIN_HEIGHT = 480 };
+enum { CONFIG_ASPECT_4_3 = 0, CONFIG_ASPECT_STRETCH, CONFIG_ASPECT_COUNT, CONFIG_ASPECT_REFRESH };
+extern uint8_t stretch_config;
+
 tern_node *load_config();
 char *serialize_config(tern_node *config, uint32_t *size_out);
 uint8_t serialize_config_file(tern_node *config, char *path);
