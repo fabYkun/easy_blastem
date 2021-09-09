@@ -329,6 +329,7 @@ void apply_updated_config(void)
 	if (current_system && current_system->config_updated) {
 		current_system->config_updated(current_system);
 	}
+	update_bindings();
 }
 
 static void on_drag_drop(const char *filename)

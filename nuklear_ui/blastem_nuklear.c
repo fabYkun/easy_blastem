@@ -2030,25 +2030,12 @@ void view_system_settings(struct nk_context *context)
 
 void view_confirm_reset(struct nk_context *context)
 {
-	if (nk_begin(context, "Reset Confirm", nk_rect(0, 0, render_width(), render_height()), 0)) {
-		uint32_t desired_width = context->style.font->height * 20;
-		nk_layout_row_static(context, context->style.font->height, desired_width, 1);
-		nk_label(context, "This will reset all settings and controller", NK_TEXT_LEFT);
-		nk_label(context, "mappings back to the defaults.", NK_TEXT_LEFT);
-		nk_label(context, "Are you sure you want to proceed?", NK_TEXT_LEFT);
-		nk_layout_row_static(context, context->style.font->height * 1.5, desired_width / 2, 2);
-		if (nk_button_label(context, "Maybe not")) {
-			pop_view();
-		}
-		if (nk_button_label(context, "Yep, delete it all")) {
-			delete_custom_config();
-			config = load_config();
-			delete_controller_info();
-			config_dirty = 1;
-			pop_view();
-		}
-		nk_end(context);
-	}
+	delete_custom_config();
+	config = load_config();
+	delete_controller_info();
+	apply_updated_config();
+	config_dirty = custom_controller_config = custom_blastem_config = 0;
+	pop_view();
 }
 
 void view_back(struct nk_context *context)
@@ -2139,6 +2126,13 @@ void ui_idle_loop(void)
 	static uint32_t last;
 	while (current_view != view_play)
 	{
+		if (current_view == view_pause && config_dirty) {
+			custom_blastem_config = 1;
+			apply_updated_config();
+			persist_config(config);
+			config_dirty = 0;
+		}
+		
 		uint32_t current = render_elapsed_ms();
 		if ((current - last) < MIN_UI_DELAY) {
 			render_sleep_ms(MIN_UI_DELAY - (current - last) - 1);
@@ -2146,13 +2140,9 @@ void ui_idle_loop(void)
 		last = current;
 		render_update_display();
 	}
-	if (config_dirty) {
-		apply_updated_config();
-		persist_config(config);
-		config_dirty = 0;
-	}
 	render_enable_gamepad_events(0);
 }
+
 static void handle_event(SDL_Event *event)
 {
 	if (event->type == SDL_KEYDOWN) {

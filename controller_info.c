@@ -71,7 +71,7 @@ static const char *variant_names[] = {
 static void load_ctype_config(void)
 {
 	if (!loaded) {
-		info_config = load_overrideable_config("controller_types.cfg", "controller_types.cfg", NULL);
+		info_config = load_overrideable_config("controller_types.cfg", "controller_types.cfg", &custom_controller_config);
 		loaded = 1;
 	}
 }

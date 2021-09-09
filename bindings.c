@@ -1114,6 +1114,78 @@ void set_bindings(void)
 	}
 }
 
+void update_bindings(void)
+{
+	tern_node * special = tern_insert_int(NULL, "up", RENDERKEY_UP);
+	special = tern_insert_int(special, "down", RENDERKEY_DOWN);
+	special = tern_insert_int(special, "left", RENDERKEY_LEFT);
+	special = tern_insert_int(special, "right", RENDERKEY_RIGHT);
+	special = tern_insert_int(special, "enter", '\r');
+	special = tern_insert_int(special, "space", ' ');
+	special = tern_insert_int(special, "tab", '\t');
+	special = tern_insert_int(special, "backspace", '\b');
+	special = tern_insert_int(special, "esc", RENDERKEY_ESC);
+	special = tern_insert_int(special, "delete", RENDERKEY_DEL);
+	special = tern_insert_int(special, "lshift", RENDERKEY_LSHIFT);
+	special = tern_insert_int(special, "rshift", RENDERKEY_RSHIFT);
+	special = tern_insert_int(special, "lctrl", RENDERKEY_LCTRL);
+	special = tern_insert_int(special, "rctrl", RENDERKEY_RCTRL);
+	special = tern_insert_int(special, "lalt", RENDERKEY_LALT);
+	special = tern_insert_int(special, "ralt", RENDERKEY_RALT);
+	special = tern_insert_int(special, "home", RENDERKEY_HOME);
+	special = tern_insert_int(special, "end", RENDERKEY_END);
+	special = tern_insert_int(special, "pageup", RENDERKEY_PAGEUP);
+	special = tern_insert_int(special, "pagedown", RENDERKEY_PAGEDOWN);
+	special = tern_insert_int(special, "f1", RENDERKEY_F1);
+	special = tern_insert_int(special, "f2", RENDERKEY_F2);
+	special = tern_insert_int(special, "f3", RENDERKEY_F3);
+	special = tern_insert_int(special, "f4", RENDERKEY_F4);
+	special = tern_insert_int(special, "f5", RENDERKEY_F5);
+	special = tern_insert_int(special, "f6", RENDERKEY_F6);
+	special = tern_insert_int(special, "f7", RENDERKEY_F7);
+	special = tern_insert_int(special, "f8", RENDERKEY_F8);
+	special = tern_insert_int(special, "f9", RENDERKEY_F9);
+	special = tern_insert_int(special, "f10", RENDERKEY_F10);
+	special = tern_insert_int(special, "f11", RENDERKEY_F11);
+	special = tern_insert_int(special, "f12", RENDERKEY_F12);
+	special = tern_insert_int(special, "select", RENDERKEY_SELECT);
+	special = tern_insert_int(special, "play", RENDERKEY_PLAY);
+	special = tern_insert_int(special, "search", RENDERKEY_SEARCH);
+	special = tern_insert_int(special, "back", RENDERKEY_BACK);
+	special = tern_insert_int(special, "np0", RENDERKEY_NP0);
+	special = tern_insert_int(special, "np1", RENDERKEY_NP1);
+	special = tern_insert_int(special, "np2", RENDERKEY_NP2);
+	special = tern_insert_int(special, "np3", RENDERKEY_NP3);
+	special = tern_insert_int(special, "np4", RENDERKEY_NP4);
+	special = tern_insert_int(special, "np5", RENDERKEY_NP5);
+	special = tern_insert_int(special, "np6", RENDERKEY_NP6);
+	special = tern_insert_int(special, "np7", RENDERKEY_NP7);
+	special = tern_insert_int(special, "np8", RENDERKEY_NP8);
+	special = tern_insert_int(special, "np9", RENDERKEY_NP9);
+	special = tern_insert_int(special, "np/", RENDERKEY_NP_DIV);
+	special = tern_insert_int(special, "np*", RENDERKEY_NP_MUL);
+	special = tern_insert_int(special, "np-", RENDERKEY_NP_MIN);
+	special = tern_insert_int(special, "np+", RENDERKEY_NP_PLUS);
+	special = tern_insert_int(special, "npenter", RENDERKEY_NP_ENTER);
+	special = tern_insert_int(special, "np.", RENDERKEY_NP_STOP);
+
+	tern_node *padbuttons = get_pad_buttons();
+
+	tern_node *mousebuttons = get_mouse_buttons();
+	
+	tern_node * keys = tern_find_path(config, "bindings\0keys\0", TVAL_NODE).ptrval;
+	process_keys(keys, special, padbuttons, mousebuttons, NULL);
+	tern_free(special);
+
+  /* update bindings for previously added gamepads */
+  for (int i = 0; i < MAX_JOYSTICKS; i++)
+  {
+    if (joysticks[i].buttons) {
+        handle_joy_added(i);
+    }
+  }
+}
+
 void bindings_set_mouse_mode(uint8_t mode)
 {
 	mouse_mode = mode;

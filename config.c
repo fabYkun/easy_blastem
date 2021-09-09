@@ -226,6 +226,8 @@ tern_node *parse_bundled_config(char *config_name)
 	return ret;
 }
 
+uint8_t custom_blastem_config = 0;
+uint8_t custom_controller_config = 0;
 tern_node *load_overrideable_config(char *name, char *bundled_name, uint8_t *used_config_dir)
 {
 	char const *confdir = get_config_dir();
@@ -250,10 +252,9 @@ tern_node *load_overrideable_config(char *name, char *bundled_name, uint8_t *use
 	return ret;
 }
 
-static uint8_t app_config_in_config_dir;
 tern_node *load_config()
 {
-	tern_node *ret = load_overrideable_config("blastem.cfg", "default.cfg", &app_config_in_config_dir);
+	tern_node *ret = load_overrideable_config("blastem.cfg", "default.cfg", &custom_blastem_config);
 	
 	if (!ret) {
 		if (get_config_dir()) {
@@ -271,7 +272,7 @@ void persist_config_at(tern_node *app_config, tern_node *to_save, char *fname)
 	char *confpath;
 	if (!strcmp(use_exe_dir, "on")) {
 		confpath = path_append(get_exe_dir(), fname);
-		if (app_config == to_save && app_config_in_config_dir) {
+		if (app_config == to_save && custom_blastem_config) {
 			//user switched to "portable" configs this session and there is an
 			//existing config file in the user-specific config directory
 			//delete it so we don't end up loading it next time
