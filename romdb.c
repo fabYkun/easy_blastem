@@ -259,7 +259,7 @@ void add_memmap_header(rom_info *info, uint8_t *rom, uint32_t size, memmap_chunk
 		rom_end = nearest_pow2(size);
 	}
 	info->save_type = SAVE_NONE;
-	if (size >= 0x80000 && !memcmp("SEGA SSF", rom + 0x100, 8)) {
+	if (size >= 0x80000 && (!memcmp("SEGA SSF", rom + 0x100, 8) || !memcmp("SEGA DOA", rom + 0x100, 8))) {
 		info->mapper_start_index = 0;
 		info->mapper_type = MAPPER_SEGA;
 		info->map_chunks = base_chunks + 9;
