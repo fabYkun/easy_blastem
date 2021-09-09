@@ -825,6 +825,9 @@ static int32_t handle_event(SDL_Event *event)
 		handle_joy_dpad(lock_joystick_index(find_joystick_index(event->jhat.which), -1), event->jhat.hat, event->jhat.value);
 		break;
 	case SDL_JOYAXISMOTION:
+		if (abs(event->jaxis.value) < (SDL_JOYSTICK_AXIS_MAX >> 1)) {
+			event->jaxis.value = 0;
+		}
 		handle_joy_axis(lock_joystick_index(find_joystick_index(event->jaxis.which), -1), event->jaxis.axis, event->jaxis.value);
 		break;
 	case SDL_JOYDEVICEADDED:

@@ -230,7 +230,7 @@ void delete_controller_info(void)
 	loaded = 0;
 	tern_free(info_config);
 	info_config = NULL;
-	render_reset_mappings();
+	// render_reset_mappings();
 }
 
 char const *labels_xbox[] = {

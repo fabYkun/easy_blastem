@@ -31,9 +31,46 @@ typedef struct
 	struct nk_image  ui;
 } ui_image;
 
-static ui_image **ui_images, *controller_360, *controller_ps4, 
-	*controller_ps4_6b, *controller_wiiu, *controller_gen_6b;
+enum {
+	BTN_UP = 0, BTN_RIGHT, BTN_DOWN, BTN_LEFT,
+	BTN_A, BTN_B, BTN_C, BTN_START, BTN_COUNT
+};
+static const int sdl_buttons[BTN_COUNT] = {
+	[BTN_UP] = SDL_CONTROLLER_BUTTON_DPAD_UP,
+	[BTN_RIGHT] = SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
+	[BTN_DOWN] = SDL_CONTROLLER_BUTTON_DPAD_DOWN,
+	[BTN_LEFT] = SDL_CONTROLLER_BUTTON_DPAD_LEFT,
+	[BTN_A] = SDL_CONTROLLER_BUTTON_A,
+	[BTN_B] = SDL_CONTROLLER_BUTTON_B,
+	[BTN_C] = SDL_CONTROLLER_BUTTON_X,
+	[BTN_START] = SDL_CONTROLLER_BUTTON_START,
+};
+static const char *sdl_buttons_label[BTN_COUNT] = {
+	[BTN_UP] = "Up",
+	[BTN_RIGHT] = "Right",
+	[BTN_DOWN] = "Down",
+	[BTN_LEFT] = "Left",
+	[BTN_A] = "A",
+	[BTN_B] = "B",
+	[BTN_C] = "C",
+	[BTN_START] = "Start",
+};
+char *back_text[LANGUAGE_COUNT] = {
+	[LANGUAGE_ENGLISH] = 		"Back",
+	[LANGUAGE_FRENCH] = 		"Retour",
+	[LANGUAGE_ITALIANO] = 	"Ritorno",
+	[LANGUAGE_DEUTSCH] = 		"Zurück",
+	[LANGUAGE_ESPANOL] = 		"Volver",
+	[LANGUAGE_PORTUGUES] = 	"Voltar",
+};
+
+static ui_image **ui_images,
+	*layout,
+	*button_up, *button_right, *button_down, *button_left,
+	*button_a, *button_b, *button_c, *button_start;
+
 static uint32_t num_ui_images, ui_image_storage;
+
 
 typedef void (*view_fun)(struct nk_context *);
 static view_fun current_view;
@@ -352,7 +389,7 @@ void binding_group(struct nk_context *context, char *name, const char **binds, c
 				label = bind_names ? bind_names[i] : binds[i];
 			}
 			nk_label(context, label, NK_TEXT_LEFT);
-			if (nk_button_label(context, tern_find_ptr_default(binding_lookup, binds[i], "Not Set"))) {
+			if (nk_button_label(context, tern_find_ptr_default(binding_lookup, binds[i], "??? - Undefined"))) {
 				set_binding = binds[i];
 				set_label = strdup(label);
 				bind_click_release = 0;
@@ -440,48 +477,11 @@ static char *get_key_name(int32_t keycode)
 void view_key_bindings(struct nk_context *context)
 {
 	const char *controller1_binds[] = {
-		"gamepads.1.up", "gamepads.1.down", "gamepads.1.left", "gamepads.1.right",
-		"gamepads.1.a", "gamepads.1.b", "gamepads.1.c",
-		"gamepads.1.x", "gamepads.1.y", "gamepads.1.z",
-		"gamepads.1.start", "gamepads.1.mode"
-	};
-	const char *controller2_binds[] = {
-		"gamepads.2.up", "gamepads.2.down", "gamepads.2.left", "gamepads.2.right",
-		"gamepads.2.a", "gamepads.2.b", "gamepads.2.c",
-		"gamepads.2.x", "gamepads.2.y", "gamepads.2.z",
-		"gamepads.2.start", "gamepads.2.mode"
-	};
-	const char *general_binds[] = {
-		"ui.exit", "ui.save_state", "ui.toggle_fullscreen", "ui.soft_reset", "ui.reload",
-		"ui.screenshot", "ui.vgm_log", "ui.sms_pause", "ui.toggle_keyboard_cpatured", "ui.release_mouse"
-	};
-	const char *general_names[] = {
-		"Show Menu", "Quick Save", "Toggle Fullscreen", "Soft Reset", "Reload Media",
-		"Internal Screenshot", "Toggle VGM Log", "SMS Pause", "Capture Keyboard", "Release Mouse"
-	};
-	const char *speed_binds[] = {
-		"ui.next_speed", "ui.prev_speed",
-		"ui.set_speed.0", "ui.set_speed.1", "ui.set_speed.2" ,"ui.set_speed.3", "ui.set_speed.4",
-		"ui.set_speed.5", "ui.set_speed.6", "ui.set_speed.7" ,"ui.set_speed.8", "ui.set_speed.9",
-	};
-	const char *speed_names[] = {
-		"Next", "Previous",
-		"Default Speed", "Set Speed 1", "Set Speed 2", "Set Speed 3", "Set Speed 4",
-		"Set Speed 5", "Set Speed 6", "Set Speed 7", "Set Speed 8", "Set Speed 9"
-	};
-	const char *debug_binds[] = {
-		"ui.enter_debugger", "ui.plane_debug", "ui.vram_debug", "ui.cram_debug",
-		"ui.compositing_debug", "ui.vdp_debug_mode"
-	};
-	const char *debug_names[] = {
-		"CPU Debugger", "Plane Debugger", "VRAM Debugger", "CRAM Debugger", 
-		"Layer Debugger", "Cycle Mode/Pal"
+		"gamepads.n.up", "gamepads.n.down", "gamepads.n.left", "gamepads.n.right",
+		"gamepads.n.a", "gamepads.n.b", "gamepads.n.c",
+		"gamepads.n.start",
 	};
 	const uint32_t NUM_C1_BINDS = sizeof(controller1_binds)/sizeof(*controller1_binds);
-	const uint32_t NUM_C2_BINDS = sizeof(controller2_binds)/sizeof(*controller2_binds);
-	const uint32_t NUM_SPEED_BINDS = sizeof(speed_binds)/sizeof(*speed_binds);
-	const uint32_t NUM_GEN_BINDS = sizeof(general_binds)/sizeof(*general_binds);
-	const uint32_t NUM_DBG_BINDS = sizeof(debug_binds)/sizeof(*debug_binds);
 	static tern_node *binding_lookup;
 	if (!binding_lookup) {
 		tern_node *bindings = tern_find_path(config, "bindings\0keys\0", TVAL_NODE).ptrval;
@@ -989,6 +989,8 @@ void view_select_binding_dest(struct nk_context *context)
 
 static ui_image *select_best_image(controller_info *info)
 {
+	return NULL;
+	/*
 	if (info->variant != VARIANT_NORMAL || info->type == TYPE_SEGA) {
 		if (info->type == TYPE_PSX) {
 			return controller_ps4_6b;
@@ -1002,6 +1004,7 @@ static ui_image *select_best_image(controller_info *info)
 	} else {
 		return controller_360;
 	}
+	*/
 }
 
 void view_controller_bindings(struct nk_context *context)
@@ -1195,7 +1198,7 @@ static void start_mapping(void)
 }
 
 static uint8_t initial_controller_config;
-#define QUIET_FRAMES 9
+#define QUIET_FRAMES 40
 static void view_controller_mappings(struct nk_context *context)
 {
 	char buffer[512];
@@ -1735,8 +1738,15 @@ int32_t find_match(const char **options, uint32_t num_options, char *path, char 
 
 int32_t settings_dropdown_ex(struct nk_context *context, char *label, const char **options, const char **opt_display, uint32_t num_options, int32_t current, char *path)
 {
+	uint32_t width = render_width();
+	uint32_t height = render_height();
+	uint32_t desired_width = context->style.font->height * 10;
+	if (desired_width > width) {
+		desired_width = width;
+	}
+
 	nk_label(context, label, NK_TEXT_LEFT);
-	int32_t next = nk_combo(context, opt_display, num_options, current, 30, nk_vec2(300, 300));
+	int32_t next = nk_combo(context, opt_display, num_options, current, context->style.font->height, nk_vec2(desired_width, desired_width));
 	if (next != current) {
 		config_dirty = 1;
 		config = tern_insert_path(config, path, (tern_val){.ptrval = strdup(options[next])}, TVAL_PTR);
@@ -2119,6 +2129,8 @@ void blastem_nuklear_render(void)
 	}
 }
 
+#include <stdio.h>
+#include "../genesis.h"
 void ui_idle_loop(void)
 {
 	render_enable_gamepad_events(1);
@@ -2162,6 +2174,7 @@ static void handle_event(SDL_Event *event)
 		hat_value = event->jhat.value;
 	}
 	else if (event->type == SDL_JOYAXISMOTION) {
+		if (abs(event->jaxis.value) < (SDL_JOYSTICK_AXIS_MAX >> 1)) event->jaxis.value = 0;
 		if (event->jaxis.axis == axis_moved || abs(event->jaxis.value) > abs(axis_value) || abs(event->jaxis.value) > 1000) {
 			axis_moved = event->jaxis.axis;
 			axis_value = event->jaxis.value;
@@ -2270,6 +2283,7 @@ static void style_init(void)
 	context->style.property.inc_button.text_hover = (struct nk_color){
 		.r = 255, .g = 128, .b = 0, .a = 255
 	};
+	context->style.property.rounding = 0;
 	context->style.property.dec_button.text_hover = context->style.property.inc_button.text_hover;
 	context->style.combo.button.text_hover = context->style.property.inc_button.text_hover;
 }
@@ -2377,12 +2391,22 @@ void blastem_nuklear_init(uint8_t file_loaded)
 #endif
 	style_init();
 	
-	controller_360 = load_ui_image("images/360.png");
-	controller_ps4 = load_ui_image("images/ps4.png");
-	controller_ps4_6b = load_ui_image("images/ps4_6b.png");
-	controller_wiiu = load_ui_image("images/wiiu.png");
-	controller_gen_6b = load_ui_image("images/genesis_6b.png");
-	
+	//controller_360 = load_ui_image("images/360.png");
+	//controller_ps4 = load_ui_image("images/ps4.png");
+	//controller_ps4_6b = load_ui_image("images/ps4_6b.png");
+	//controller_wiiu = load_ui_image("images/wiiu.png");
+	//controller_gen_6b = load_ui_image("images/genesis_6b.png");
+
+	layout = 					load_ui_image("images/layout.png");
+	button_up = 			load_ui_image("images/button1.png");
+	button_right = 		load_ui_image("images/button2.png");
+	button_down = 		load_ui_image("images/button3.png");
+	button_left = 		load_ui_image("images/button4.png");
+	button_a = 				load_ui_image("images/button5.png");
+	button_b = 				load_ui_image("images/button6.png");
+	button_c = 				load_ui_image("images/button7.png");
+	button_start = 		load_ui_image("images/button8.png");
+
 	texture_init();
 	
 	if (file_loaded) {
