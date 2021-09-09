@@ -251,23 +251,26 @@ void persist_save()
 	game_system->persist_save(game_system);
 }
 
+void sram_save() {
+	persist_save();
+}
+
 char *title;
 void update_title(char *rom_name)
 {
+	/*
 	if (title) {
 		free(title);
 		title = NULL;
 	}
 	title = alloc_concat(rom_name, " - BlastEm");
 	render_update_caption(title);
+	*/
 }
 
 static char *get_save_dir(system_media *media)
 {
-	char *savedir_template = tern_find_path(config, "ui\0save_path\0", TVAL_PTR).ptrval;
-	if (!savedir_template) {
-		savedir_template = "$USERDATA/blastem/$ROMNAME";
-	}
+	char *savedir_template = "$EXEDIR" PATH_SEP SAVE_DIR;
 	tern_node *vars = tern_insert_ptr(NULL, "ROMNAME", media->name);
 	vars = tern_insert_ptr(vars, "ROMDIR", media->dir);
 	vars = tern_insert_ptr(vars, "HOME", get_home_dir());
@@ -627,6 +630,20 @@ int main(int argc, char ** argv)
 			height = atoi(argv[i]);
 		}
 	}
+
+	/* rom */
+	{
+		const char *path = ROM_PATH;
+		if (!(cart.size = load_rom(path, &cart.buffer, stype == SYSTEM_UNKNOWN ? &stype : NULL))) {
+			fatal_error("Failed to open %s for reading\n", path);
+		}
+		
+		cart.dir = path_dirname(path);
+		cart.name = basename_no_extension(path);
+		cart.extension = path_extension(path);
+		romfname = path;
+		loaded = 1;
+	}
 	
 	int def_width = 0, def_height = 0;
 	char *config_width = tern_find_path(config, "video\0width\0", TVAL_PTR).ptrval;
@@ -654,8 +671,8 @@ int main(int argc, char ** argv)
 		if (reader_addr) {
 			render_set_external_sync(1);
 		}
-		render_init(width, height, "BlastEm", fullscreen);
-		render_set_drag_drop_handler(on_drag_drop);
+		render_init(width, height, APP_NAME, fullscreen);
+		//render_set_drag_drop_handler(on_drag_drop);
 	}
 	set_bindings();
 	

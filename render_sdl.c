@@ -1615,7 +1615,7 @@ static void process_framebuffer(uint32_t *buffer, uint8_t which, int width)
 					fps_caption = malloc(strlen(caption) + strlen(" - 100000000.1 fps") + 1);
 				}
 				sprintf(fps_caption, "%s - %.1f fps", caption, ((float)frame_counter) / (((float)(last_frame-start)) / 1000.0));
-				SDL_SetWindowTitle(main_window, fps_caption);
+				// SDL_SetWindowTitle(main_window, fps_caption);
 	#endif
 			}
 			start = last_frame;

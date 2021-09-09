@@ -4,6 +4,10 @@
 #include "tern.h"
 #include "system.h"
 
+#define APP_NAME "EasyBlastem"
+#define ROM_PATH "rom.bin"
+#define SAVE_DIR "SavesDir"
+
 extern int headless;
 extern int exit_after;
 extern int z80_enabled;
@@ -16,6 +20,7 @@ extern char *save_state_path;
 extern char *save_filename;
 extern uint8_t use_native_states;
 void reload_media(void);
+void sram_save(void);
 void lockon_media(char *lock_on_path);
 void init_system_with_media(const char *path, system_type force_stype);
 void apply_updated_config(void);
