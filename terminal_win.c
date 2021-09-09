@@ -1,7 +1,8 @@
 #include <windows.h>
 #include <stdio.h>
+#include "steam_cmd.h"
 
-static char init_done;
+static char init_done = 0;
 
 void force_no_terminal()
 {
@@ -10,6 +11,7 @@ void force_no_terminal()
 
 void init_terminal()
 {
+	init_done = 1;
 	if (!init_done) {
 		AllocConsole();
 		freopen("CONIN$", "r", stdin);

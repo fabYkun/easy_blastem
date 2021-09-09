@@ -34,6 +34,8 @@
 #ifndef DISABLE_NUKLEAR
 #include "nuklear_ui/blastem_nuklear.h"
 #endif
+#include "steam_cmd.h"
+#include "steamshim_child.h"
 
 #define BLASTEM_VERSION "0.6.3-pre"
 
@@ -466,6 +468,13 @@ char *parse_addr_port(char *arg)
 
 int main(int argc, char ** argv)
 {
+	//freopen("stdout.txt", "a", stdout);
+	//setbuf(stdout, NULL);
+
+	STEAMSHIM_init();
+	atexit(STEAMSHIM_deinit);
+	steam_cmd_loadstats();
+
 	set_exe_str(argv[0]);
 	config = load_config();
 	int width = -1;

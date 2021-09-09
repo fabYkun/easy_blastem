@@ -11,6 +11,7 @@
 #include "util.h"
 #include "event_log.h"
 #include "terminal.h"
+#include "steam_cmd.h"
 
 #define NTSC_INACTIVE_START 224
 #define PAL_INACTIVE_START 240
@@ -3826,6 +3827,9 @@ int vdp_control_port_write(vdp_context * context, uint16_t value)
 					context->kmod_msg_buffer[context->kmod_buffer_length - 1] = c;
 				} else if (context->kmod_buffer_length) {
 					context->kmod_msg_buffer[context->kmod_buffer_length] = 0;
+					if (strstr(context->kmod_msg_buffer, "[EzB]:") != NULL) {
+						steam_cmd_parselog(&context->kmod_msg_buffer[6]);
+					}
 					if (is_stdout_enabled()) {
 						init_terminal();
 						printf("KDEBUG MESSAGE: %s\n", context->kmod_msg_buffer);

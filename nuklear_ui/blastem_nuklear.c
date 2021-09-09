@@ -9,6 +9,7 @@
 #include "blastem_nuklear.h"
 #include "nuklear_rawfb.h"
 #include "font.h"
+#include "../steam_cmd.h"
 #include "../render.h"
 #include "../render_sdl.h"
 #include "../util.h"
