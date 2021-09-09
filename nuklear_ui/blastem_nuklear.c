@@ -2126,6 +2126,12 @@ void ui_idle_loop(void)
 	static uint32_t last;
 	while (current_view != view_play)
 	{
+		/* resets controller inputs */
+		genesis_context *gen = (genesis_context *)current_system;
+		gen->io.ports[0].input[0] = gen->io.ports[0].input[1] = gen->io.ports[0].input[2] = 0;
+		gen->io.ports[1].input[0] = gen->io.ports[1].input[1] = gen->io.ports[1].input[2] = 0;
+		gen->io.ports[2].input[0] = gen->io.ports[2].input[1] = gen->io.ports[2].input[2] = 0;
+
 		if (current_view == view_pause && config_dirty) {
 			custom_blastem_config = 1;
 			apply_updated_config();
