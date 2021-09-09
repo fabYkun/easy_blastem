@@ -492,13 +492,17 @@ void view_key_bindings(struct nk_context *context)
 	uint32_t width = render_width();
 	uint32_t height = render_height();
 	if (nk_begin(context, "Keyboard Bindings", nk_rect(0, 0, width, height), 0)) {
-		binding_group(context, "Controller 1", controller1_binds, NULL, NUM_C1_BINDS, binding_lookup);
-		binding_group(context, "Controller 2", controller2_binds, NULL, NUM_C2_BINDS, binding_lookup);
-		binding_group(context, "General", general_binds, general_names, NUM_GEN_BINDS, binding_lookup);
-		binding_group(context, "Speed Control", speed_binds, speed_names, NUM_SPEED_BINDS, binding_lookup);
-		binding_group(context, "Debug", debug_binds, debug_names, NUM_DBG_BINDS, binding_lookup);
+		char *keyboard_text[LANGUAGE_COUNT] = {
+			[LANGUAGE_ENGLISH] = 		"Keyboard settings",
+			[LANGUAGE_FRENCH] = 		"Configuration du clavier",
+			[LANGUAGE_ITALIANO] = 	"Controlli tastiera",
+			[LANGUAGE_DEUTSCH] = 		"Tastatursteuerung",
+			[LANGUAGE_ESPANOL] = 		"Controles del teclado",
+			[LANGUAGE_PORTUGUES] = 	"Controles de teclado",
+		};
+		binding_group(context, keyboard_text[language], controller1_binds, NULL, NUM_C1_BINDS, binding_lookup);
 		nk_layout_row_static(context, context->style.font->height * 1.1333, (render_width() - 80) / 2, 1);
-		if (nk_button_label(context, "Back")) {
+		if (nk_button_label(context, back_text[language])) {
 			pop_view();
 		}
 		nk_end(context);
@@ -1761,20 +1765,34 @@ int32_t settings_dropdown(struct nk_context *context, char *label, const char **
 
 void view_video_settings(struct nk_context *context)
 {
-	const char *vsync_opts[] = {"on", "off", "tear"};
+	const char *aspect_opts[CONFIG_ASPECT_COUNT] = { [CONFIG_ASPECT_STRETCH] = "stretch", [CONFIG_ASPECT_4_3] = "4:3" };
+	const char *vsync_opts[] = {"on", "tear", "off"};
 	const char *vsync_opt_names[] = {
-		"On",
+		"On (quality)",
+		"On (performance)",
 		"Off",
-		"On, tear if late"
 	};
 	const uint32_t num_vsync_opts = sizeof(vsync_opts)/sizeof(*vsync_opts);
+	const char *sync_opts[] = {
+		"video",
+		"audio"
+	};
+	const uint32_t num_sync_opts = sizeof(sync_opts)/sizeof(*sync_opts);
+	static int32_t selected_sync = -1;
+	if (selected_sync < 0) {
+		selected_sync = find_match(sync_opts, num_sync_opts, "system\0sync_source\0", "video");
+	}
 	static shader_prog *progs;
 	static char **prog_names;
 	static uint32_t num_progs;
 	static uint32_t selected_prog;
 	static int32_t selected_vsync = -1;
+	static int32_t selected_aspect = -1;
 	if (selected_vsync < 0) {
 		selected_vsync = find_match(vsync_opts, num_vsync_opts, "video\0vsync\0", "off");
+	}
+	if (selected_aspect < 0) {
+		selected_aspect = MIN(stretch_config, (CONFIG_ASPECT_COUNT - 1));
 	}
 	if(!progs) {
 		progs = get_shader_list(&num_progs);
@@ -1804,12 +1822,33 @@ void view_video_settings(struct nk_context *context)
 		desired_width = width;
 	}
 	if (nk_begin(context, "Video Settings", nk_rect(0, 0, width, height), 0)) {
-		nk_layout_row_static(context, context->style.font->height, desired_width, 2);
-		settings_toggle(context, "Fullscreen", "video\0fullscreen\0", 0);
-		settings_toggle(context, "Open GL", "video\0gl\0", 1);
-		settings_toggle(context, "Scanlines", "video\0scanlines\0", 0);
+		nk_layout_row_static(context, context->style.font->height+30, render_width() - 80, 1);
+		char *graphics_text[LANGUAGE_COUNT] = {
+			[LANGUAGE_ENGLISH] = 		"Video settings",
+			[LANGUAGE_FRENCH] = 		"Paramètres vidéo",
+			[LANGUAGE_ITALIANO] = 	"Impostazioni grafica",
+			[LANGUAGE_DEUTSCH] = 		"Grafikeinstellungen",
+			[LANGUAGE_ESPANOL] = 		"Configuración de gráficos",
+			[LANGUAGE_PORTUGUES] = 	"Configurações de gráficos",
+		};
+		char *fullscreen_text[LANGUAGE_COUNT] = {
+			[LANGUAGE_ENGLISH] = 		"Fullscreen",
+			[LANGUAGE_FRENCH] = 		"Plein écran",
+			[LANGUAGE_ITALIANO] = 	"Schermo intero",
+			[LANGUAGE_DEUTSCH] = 		"Vollbild",
+			[LANGUAGE_ESPANOL] = 		"Pantalla completa",
+			[LANGUAGE_PORTUGUES] = 	"Tela cheia",
+		};
+		nk_group_begin(context, graphics_text[language], NK_WINDOW_TITLE);
+		nk_group_end(context);
+		nk_layout_row_static(context, context->style.font->height + 4, desired_width, 2);
+		settings_toggle(context, fullscreen_text[language], "video\0fullscreen\0", 0);
+		//settings_toggle(context, "Open GL", "video\0gl\0", 1);
+		//settings_toggle(context, "Scanlines", "video\0scanlines\0", 0);
+		selected_aspect = settings_dropdown_ex(context, "Aspect", aspect_opts, aspect_opts, CONFIG_ASPECT_COUNT, selected_aspect, "video\0aspect\0");
 		selected_vsync = settings_dropdown_ex(context, "VSync", vsync_opts, vsync_opt_names, num_vsync_opts, selected_vsync, "video\0vsync\0");
-		settings_int_input(context, "Windowed Width", "video\0width\0", "640");
+		selected_sync = settings_dropdown(context, "Sync Source", sync_opts, num_sync_opts, selected_sync, "system\0sync_source\0");
+		//settings_int_input(context, "Windowed Width", "video\0width\0", "640");
 		nk_label(context, "Shader", NK_TEXT_LEFT);
 		uint32_t next_selected = nk_combo(context, (const char **)prog_names, num_progs, selected_prog, context->style.font->height, nk_vec2(desired_width, desired_width));
 		if (next_selected != selected_prog) {
@@ -1818,6 +1857,7 @@ void view_video_settings(struct nk_context *context)
 			config = tern_insert_path(config, "video\0fragment_shader\0", (tern_val){.ptrval = strdup(progs[next_selected].fragment)}, TVAL_PTR);
 			config = tern_insert_path(config, "video\0vertex_shader\0", (tern_val){.ptrval = strdup(progs[next_selected].vertex)}, TVAL_PTR);
 		}
+		/*
 		settings_int_property(context, "NTSC Overscan", "Top", "video\0ntsc\0overscan\0top\0", 2, 0, 32);
 		settings_int_property(context, "", "Bottom", "video\0ntsc\0overscan\0bottom\0", 17, 0, 32);
 		settings_int_property(context, "", "Left", "video\0ntsc\0overscan\0left\0", 13, 0, 32);
@@ -1826,8 +1866,8 @@ void view_video_settings(struct nk_context *context)
 		settings_int_property(context, "", "Bottom", "video\0pal\0overscan\0bottom\0", 17, 0, 32);
 		settings_int_property(context, "", "Left", "video\0pal\0overscan\0left\0", 13, 0, 32);
 		settings_int_property(context, "", "Right", "video\0pal\0overscan\0right\0", 14, 0, 32);
-		
-		if (nk_button_label(context, "Back")) {
+		*/
+		if (nk_button_label(context, back_text[language])) {
 			pop_view();
 		}
 		nk_end(context);
@@ -2078,20 +2118,256 @@ void exit_handler(uint32_t index)
 	exit(0);
 }
 
+static void start_mapping_custom(void)
+{
+	if (current_button >= BTN_COUNT) return;
+	const char *name;
+	mapping_string[mapping_pos++] = ',';
+	name = SDL_GameControllerGetStringForButton(sdl_buttons[current_button]);
+	size_t namesz = strlen(name);
+	memcpy(mapping_string + mapping_pos, name, namesz);
+	mapping_pos += namesz;
+	mapping_string[mapping_pos++] = ':';
+}
+
+static void view_controller_mappings_custom(struct nk_context *context)
+{
+	char buffer[512];
+	static int quiet, button_a = -1, button_a_axis = -1;
+	uint8_t added_mapping = 0;
+
+	if (nk_begin(context, "Controllers", nk_rect(0, 0, render_width(), render_height()), NK_WINDOW_NO_SCROLLBAR))
+	{
+		nk_layout_space_begin(context, NK_STATIC, render_height() - context->style.font->height, 3);
+		
+		const char *press_button[LANGUAGE_COUNT] = {
+			[LANGUAGE_ENGLISH] = "Press button",
+			[LANGUAGE_FRENCH] = "Appuyez sur le button",
+			[LANGUAGE_DEUTSCH] = "Drücke Knopf",
+			[LANGUAGE_PORTUGUES] = "Pressione o botão",
+			[LANGUAGE_ESPANOL] = "Presione el botón",
+			[LANGUAGE_ITALIANO] = "Premi il tasto",
+		};
+		snprintf(buffer, sizeof(buffer), "%s %s", press_button[language], sdl_buttons_label[current_button]);
+		
+		float height = context->style.font->height * 1.25;
+		float top = render_height()/2 - 1.5 * height;
+		float width = render_width() - context->style.font->height;
+		
+		nk_layout_space_push(context, nk_rect(0, top, width, height));
+		nk_label(context, buffer, NK_TEXT_CENTERED);
+	
+		ui_image *controller_image = layout;
+		nk_layout_space_push(context, nk_rect(render_width()/2-controller_image->width/2, top + height, controller_image->width, controller_image->height));
+		nk_image(context, controller_image->ui);
+
+		static unsigned int counter = 0;
+		if ((counter++ & 127) < 100) {
+			ui_image *button_image = ui_images[1 + current_button];
+			nk_layout_space_push(context, nk_rect(render_width()/2-button_image->width/2, top + height, button_image->width, button_image->height));
+			nk_image(context, button_image->ui);
+		}
+
+		nk_layout_space_end(context);
+
+		if (quiet) {
+			--quiet;
+		} else {
+			if (button_pressed >= 0 && button_pressed != last_button) {
+				if (sdl_buttons[current_button] <= SDL_CONTROLLER_BUTTON_B || button_pressed != button_a) {
+					start_mapping_custom();
+					mapping_string[mapping_pos++] = 'b';
+					if (button_pressed > 9) {
+						mapping_string[mapping_pos++] = '0' + button_pressed / 10;
+					}
+					mapping_string[mapping_pos++] = '0' + button_pressed % 10;
+					last_button = button_pressed;
+					if (sdl_buttons[current_button] == SDL_CONTROLLER_BUTTON_A) {
+						button_a = button_pressed;
+					}
+				}
+				added_mapping = 1;
+			} else if (hat_moved >= 0 && hat_value && (hat_moved != last_hat || hat_value != last_hat_value)) {
+				start_mapping_custom();
+				mapping_string[mapping_pos++] = 'h';
+				mapping_string[mapping_pos++] = '0' + hat_moved;
+				mapping_string[mapping_pos++] = '.';
+				mapping_string[mapping_pos++] = '0' + hat_value;
+				added_mapping = 1;
+				
+				last_hat = hat_moved;
+				last_hat_value = hat_value;
+			} else if (axis_moved >= 0 && abs(axis_value) > 1000 && (
+					axis_moved != last_axis || (
+						axis_value/abs(axis_value) != last_axis_value/abs(axis_value) && sdl_buttons[current_button] >= SDL_CONTROLLER_BUTTON_DPAD_UP
+					)
+				)) {
+				if (sdl_buttons[current_button] <= SDL_CONTROLLER_BUTTON_B || axis_moved != button_a_axis) {
+					start_mapping_custom();
+					if (sdl_buttons[current_button] >= SDL_CONTROLLER_BUTTON_DPAD_UP) {
+						mapping_string[mapping_pos++] = axis_value >= 0 ? '+' : '-';
+					}
+					mapping_string[mapping_pos++] = 'a';
+					if (axis_moved > 9) {
+						mapping_string[mapping_pos++] = '0' + axis_moved / 10;
+					}
+					mapping_string[mapping_pos++] = '0' + axis_moved % 10;
+					last_axis = axis_moved;
+					last_axis_value = axis_value;
+				}
+				added_mapping = 1;
+			}
+		}
+			
+		while (added_mapping) {
+			quiet = QUIET_FRAMES;
+			if (current_button < BTN_COUNT) {
+				current_button++;
+				if (current_button == BTN_COUNT) {
+					button_a = -1;
+					button_a_axis = -1;
+					mapping_string[mapping_pos] = 0;
+					save_controller_mapping(selected_controller, mapping_string);
+					//config_dirty = 1;
+					//custom_controller_config = 1;
+					free(mapping_string);
+					pop_view();
+					added_mapping = mapping_pos = 0;
+				} else if (get_button_label(&selected_controller_info, sdl_buttons[current_button])) {
+					added_mapping = 0;
+				}
+			}
+		}
+		button_pressed = -1;
+		hat_moved = -1;
+		axis_moved = -1;
+		nk_end(context);
+	}
+}
+
+static void show_mapping_view_custom(struct nk_context *context)
+{
+	uint8_t found_controller = 0;
+	for (int i = 0; i < MAX_JOYSTICKS; i++)
+	{
+		SDL_Joystick *joy = render_get_joystick(i);
+		if (joy) {
+			found_controller = 1;
+			selected_controller = i;
+			break;
+		}
+	}
+	if (!found_controller) {
+		float MIN_WIDTH = 200 + context->style.font->height * 6;
+		float MIN_HEIGHT = 100 + context->style.font->height * 4;
+
+		if (nk_begin(context, "Controllers", nk_rect(
+				(render_width()) / 2 - (MIN_WIDTH / 2), (render_height() / 2) - (MIN_HEIGHT / 2),
+				MIN_WIDTH, MIN_HEIGHT), NK_WINDOW_NO_SCROLLBAR))
+		{
+			nk_layout_row_static(context, context->style.font->height, MIN_WIDTH - 2 * context->style.font->height, 1);
+			nk_label(context, "No controller found", NK_TEXT_CENTERED);
+			if (nk_button_label(context, back_text[language])) {
+				pop_view();
+			}
+			nk_end(context);
+		}
+		return;
+	}
+
+	current_button = BTN_UP;
+	button_pressed = -1;
+	last_button = -1;
+	last_hat = -1;
+	axis_moved = -1;
+	last_axis = -1;
+	last_axis_value = 0;
+	SDL_Joystick *joy = render_get_joystick(selected_controller);
+	const char *name = SDL_JoystickName(joy);
+	size_t namesz = strlen(name);
+	mapping_string = malloc(512 + namesz);
+	for (mapping_pos = 0; mapping_pos < namesz; mapping_pos++)
+	{
+		char c = name[mapping_pos];
+		if (c == ',' || c == '\n' || c == '\r') {
+			c = ' ';
+		}
+		mapping_string[mapping_pos] = c;
+	}
+	
+	current_view = view_controller_mappings_custom;
+}
+
 void view_pause(struct nk_context *context)
 {
-	static menu_item items[] = {
-		{"Resume", view_play},
-		{"Load ROM", view_load},
-		{"Lock On", view_lock_on},
-		{"Save State", view_save_state},
-		{"Load State", view_load_state},
-		{"Settings", view_settings},
-		{"Exit", NULL}
+	enum { ITEMS_COUNT = 6 };
+	const char *exit_title[LANGUAGE_COUNT] = {
+		[LANGUAGE_ENGLISH] = 		"Quit the game",
+		[LANGUAGE_FRENCH] = 		"Quitter le jeu",
+		[LANGUAGE_ITALIANO] = 	"Esci dal gioco",
+		[LANGUAGE_DEUTSCH] = 		"Das Spiel beenden",
+		[LANGUAGE_ESPANOL] = 		"Salir del juego",
+		[LANGUAGE_PORTUGUES] = 	"Sair do jogo",
 	};
-	
+	const char *delete_custom[LANGUAGE_COUNT] = {
+		[LANGUAGE_ENGLISH] = 		"Reset settings",
+		[LANGUAGE_FRENCH] = 		"Réinitialiser les paramètres",
+		[LANGUAGE_ITALIANO] = 	"Ripristina le impostazioni",
+		[LANGUAGE_DEUTSCH] = 		"Einstellungen zurücksetzen",
+		[LANGUAGE_ESPANOL] = 		"Resetear la configuración",
+		[LANGUAGE_PORTUGUES] = 	"Limpar configurações",
+	};
+	static menu_item items[LANGUAGE_COUNT][ITEMS_COUNT] = {
+		[LANGUAGE_ENGLISH] = {
+			[0] = {"Resume game", view_play},
+			[1] = {"Gamepad settings", show_mapping_view_custom},
+			[2] = {"Keyboard settings", view_key_bindings},
+			[3] = {"Video settings", view_video_settings},
+		},
+		[LANGUAGE_FRENCH] = {
+			[0] = {"Reprendre la partie", view_play},
+			[1] = {"Configuration manette", show_mapping_view_custom},
+			[2] = {"Configuration du clavier", view_key_bindings},
+			[3] = {"Paramètres vidéo", view_video_settings},
+		},
+		[LANGUAGE_ITALIANO] = {
+			[0] = {"Riprendere la partita", view_play},
+			[1] = {"Controlli joystick", show_mapping_view_custom},
+			[2] = {"Controlli tastiera", view_key_bindings},
+			[3] = {"Impostazioni grafica", view_video_settings},
+		},
+		[LANGUAGE_DEUTSCH] = {
+			[0] = {"Das Spiel weiterführen", view_play},
+			[1] = {"Joysticksteuerung", show_mapping_view_custom},
+			[2] = {"Tastatursteuerung", view_key_bindings},
+			[3] = {"Grafikeinstellungen", view_video_settings},
+		},
+		[LANGUAGE_ESPANOL] = {
+			[0] = {"Reanudar el juego", view_play},
+			[1] = {"Controles del joystick", show_mapping_view_custom},
+			[2] = {"Controles del teclado", view_key_bindings},
+			[3] = {"Configuración de gráficos", view_video_settings},
+		},
+		[LANGUAGE_PORTUGUES] = {
+			[0] = {"Continuar o jogo", view_play},
+			[1] = {"Controles do joystick", show_mapping_view_custom},
+			[2] = {"Controles de teclado", view_key_bindings},
+			[3] = {"Configurações de gráficos", view_video_settings},
+		},
+	};
+
+	uint32_t entries = ITEMS_COUNT;
+	if (custom_controller_config || custom_blastem_config) {
+		items[language][entries - 2].title = delete_custom[language];
+		items[language][entries - 2].next_view = view_confirm_reset;
+	} else {
+		entries -= 1;
+	}
+	items[language][entries - 1].title = exit_title[language];
+	items[language][entries - 1].next_view = NULL;
+
 	if (nk_begin(context, "Main Menu", nk_rect(0, 0, render_width(), render_height()), 0)) {
-		menu(context, sizeof(items)/sizeof(*items), items, exit_handler);
+		menu(context, entries, items[language], exit_handler);
 		nk_end(context);
 	}
 }
