@@ -1,7 +1,10 @@
-#define GAME_LAUNCH_NAME "testapp"
+#define GAME_LAUNCH_NAME "demons"
 #ifndef GAME_LAUNCH_NAME
 #error Please define your game exe name.
 #endif
+
+// hides console
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN 1
@@ -22,7 +25,7 @@ typedef int PipeType;
 #define NULLPIPE -1
 #endif
 
-#include "steam/steam_api.h"
+#include "steam_api.h"
 
 #define DEBUGPIPE 1
 #if DEBUGPIPE
@@ -100,11 +103,15 @@ static bool setEnvVar(const char *key, const char *val)
     return (SetEnvironmentVariableA(key, val) != 0);
 } // setEnvVar
 
-static bool launchChild(ProcessType *pid);
+static bool launchChild(ProcessType *pid)
 {
-    return (CreateProcessW(TEXT(".\\") TEXT(GAME_LAUNCH_NAME) TEXT(".exe"),
-                           GetCommandLineW(), NULL, NULL, TRUE, 0, NULL,
-                           NULL, NULL, pid) != 0);
+	STARTUPINFOW si;
+	memset(&si, 0, sizeof(si));
+
+	LPCWSTR game_program = L".\\" GAME_LAUNCH_NAME ".exe";
+    return (CreateProcessW(	game_program,
+							GetCommandLineW(), NULL, NULL, TRUE, 0, NULL,
+							NULL, &si, pid) != 0);
 } // launchChild
 
 static int closeProcess(ProcessType *pid)
@@ -114,7 +121,7 @@ static int closeProcess(ProcessType *pid)
     return 0;
 } // closeProcess
 
-int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+int CALLBACK main(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                      LPSTR lpCmdLine, int nCmdShow)
 {
     mainline();
@@ -617,6 +624,40 @@ static void deinitSteamworks(void)
     GSteamUser = NULL;
 } // deinitSteamworks
 
+#include <strsafe.h>
+void ErrorExit()
+{
+	// Retrieve the system error message for the last-error code
+
+	LPVOID lpMsgBuf;
+	LPVOID lpDisplayBuf;
+	DWORD dw = GetLastError();
+
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		dw,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf,
+		0, NULL);
+
+	// Display the error message and exit the process
+
+	lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
+		(lstrlen((LPCTSTR)lpMsgBuf) + 40) * sizeof(TCHAR));
+	StringCchPrintf((LPTSTR)lpDisplayBuf,
+		LocalSize(lpDisplayBuf) / sizeof(TCHAR),
+		TEXT("failed with error %d: %s"),
+		dw, lpMsgBuf);
+	MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+
+	LocalFree(lpMsgBuf);
+	LocalFree(lpDisplayBuf);
+	ExitProcess(dw);
+}
+
 static int mainline(void)
 {
     PipeType pipeParentRead = NULLPIPE;
@@ -627,14 +668,22 @@ static int mainline(void)
 
     dbgpipe("Parent starting mainline.\n");
 
-    if (!createPipes(&pipeParentRead, &pipeParentWrite, &pipeChildRead, &pipeChildWrite))
-        fail("Failed to create application pipes");
-    else if (!initSteamworks(pipeParentWrite))
-        fail("Failed to initialize Steamworks");
-    else if (!setEnvironmentVars(pipeChildRead, pipeChildWrite))
-        fail("Failed to set environment variables");
-    else if (!launchChild(&childPid))
-        fail("Failed to launch application");
+    {
+        dbgpipe("createPipes.\n");
+        if (!createPipes(&pipeParentRead, &pipeParentWrite, &pipeChildRead, &pipeChildWrite))
+            fail("Failed to create application pipes");
+        dbgpipe("initSteamworks.\n");
+        if (!initSteamworks(pipeParentWrite))
+            fail("Failed to initialize Steamworks (Steam might not be running)");
+        dbgpipe("setEnvironmentVars.\n");
+        if (!setEnvironmentVars(pipeChildRead, pipeChildWrite))
+            fail("Failed to set environment variables");
+        dbgpipe("launchChild.\n");
+		if (!launchChild(&childPid)) {
+			ErrorExit();
+			fail("Failed to launch game");
+		}
+    }
 
     // Close the ends of the pipes that the child will use; we don't need them.
     closePipe(pipeChildRead);
