@@ -13,7 +13,7 @@
 #include "special_keys_evdev.h"
 #define render_relative_mouse(V)
 #else
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #define RENDERKEY_UP       SDLK_UP
 #define RENDERKEY_DOWN     SDLK_DOWN
 #define RENDERKEY_LEFT     SDLK_LEFT

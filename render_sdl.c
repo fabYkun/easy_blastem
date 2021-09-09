@@ -18,7 +18,9 @@
 #include "png.h"
 #include "config.h"
 #include "controller_info.h"
-
+#ifndef DISABLE_ZLIB
+#include "spng/spng.h"
+#endif
 #ifndef DISABLE_OPENGL
 #ifdef USE_GLES
 #include <SDL_opengles2.h>
@@ -64,6 +66,22 @@ static uint32_t min_buffered;
 uint32_t **frame_buffers;
 uint32_t num_buffers;
 uint32_t buffer_storage;
+
+void overlay_resize(void)
+{
+	if (!auto_resized && stretch_config == CONFIG_ASPECT_4_3 && !is_fullscreen) {
+		main_width = (main_height * 2) - ((main_height / 9) * 2);
+		int w,h;
+		static int wanted_w, wanted_h = 0;
+		SDL_GetWindowSize(main_window, &w, &h);
+		if ((w != main_width || h != main_height)) {
+			auto_resized = 1;
+			SDL_SetWindowSize(main_window, main_width, main_height);
+		}
+	} else {
+		auto_resized = 0;
+	}
+}
 
 uint32_t render_min_buffered(void)
 {
@@ -291,9 +309,13 @@ void render_set_external_sync(uint8_t ext_sync_on)
 	}
 }
 
+static int tex_width, tex_height;
+
 #ifndef DISABLE_OPENGL
 static GLuint textures[3], buffers[2], vshader, fshader, program, un_textures[2], un_width, un_height, un_texsize, at_pos;
-static int tex_width, tex_height;
+
+/*overlay*/
+static GLuint o_program, o_vshader, o_fshader, o_texture, o_buffers[2], o_un_texture, o_at_pos;
 
 static GLfloat vertex_data_default[] = {
 	-1.0f, -1.0f,
@@ -304,19 +326,74 @@ static GLfloat vertex_data_default[] = {
 
 static GLfloat vertex_data[8];
 
+static GLfloat o_vertex_data[] = {
+	-1.0f, -1.0f,
+	 1.0f, -1.0f,
+	-1.0f,  1.0f,
+	 1.0f,  1.0f
+};
+
 static const GLushort element_data[] = {0, 1, 2, 3};
+static const GLushort o_element_data[] = {0, 1, 2, 3};
 
 static const GLchar shader_prefix[] =
 #ifdef USE_GLES
 	"#version 100\n";
 #else
-	"#version 110\n"
-	"#define lowp\n"
-	"#define mediump\n"
-	"#define highp\n";
+	"#version 110\n";
 #endif
 
-static GLuint load_shader(char * fname, GLenum shader_type)
+static void *o_png = NULL;
+static size_t o_png_size;
+
+enum { O_TEX_WIDTH = 1280, O_TEX_HEIGHT = 720 };
+static void load_overlay(char * fname)
+{
+	#ifndef DISABLE_ZLIB	
+	char *overlay_path;
+	FILE *f;
+
+	char *data_dir = get_exe_dir();
+	char const * parts[] = { data_dir, PATH_SEP, "overlay", PATH_SEP, fname };
+	overlay_path = alloc_concat_m(5, parts);
+	f = fopen(overlay_path, "rb");
+	free(overlay_path);
+	if (!f) {
+		warning("Failed to open overlay file %s for reading\n", fname);
+		return;
+	}
+
+	GLchar *text;
+	long fsize;
+	fsize = file_size(f);
+	text = malloc(fsize);
+	if (fread(text, 1, fsize, f) != fsize) {
+		warning("Error reading from overlay file %s\n", fname);
+		free(text);
+		return;
+	}
+	/* Create a context */
+	spng_ctx *ctx = spng_ctx_new(0);
+	/* Set an input buffer */
+	spng_set_png_buffer(ctx, text, (size_t) fsize);
+
+	/* Determine output image size */
+	spng_decoded_image_size(ctx, SPNG_FMT_RGBA8, &o_png_size);
+	if (o_png != NULL) {
+		free(o_png);
+		o_png = NULL;
+	}
+	o_png = malloc(o_png_size);
+	/* Decode to 8-bit RGBA */
+	spng_decode_image(ctx, o_png, o_png_size, SPNG_FMT_RGBA8, 0);
+	/* Free context memory */
+	spng_ctx_free(ctx);
+	free(text);
+	fclose(f);
+	#endif
+}
+
+static GLuint load_shader(char *dir, char * fname, GLenum shader_type)
 {
 	char * shader_path;
 	FILE *f;
@@ -337,7 +414,7 @@ static GLuint load_shader(char * fname, GLenum shader_type)
 		}
 	} else {
 #endif
-		shader_path = path_append("shaders", fname);
+		shader_path = path_append(dir, fname);
 		uint32_t fsize32;
 		text = read_bundled_file(shader_path, &fsize32);
 		free(shader_path);
@@ -429,9 +506,9 @@ static void gl_setup()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[1]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(element_data), element_data, GL_STATIC_DRAW);
 	def.ptrval = "default.v.glsl";
-	vshader = load_shader(tern_find_path_default(config, "video\0vertex_shader\0", def, TVAL_PTR).ptrval, GL_VERTEX_SHADER);
+	vshader = load_shader("shaders", tern_find_path_default(config, "video\0vertex_shader\0", def, TVAL_PTR).ptrval, GL_VERTEX_SHADER);
 	def.ptrval = "default.f.glsl";
-	fshader = load_shader(tern_find_path_default(config, "video\0fragment_shader\0", def, TVAL_PTR).ptrval, GL_FRAGMENT_SHADER);
+	fshader = load_shader("shaders", tern_find_path_default(config, "video\0fragment_shader\0", def, TVAL_PTR).ptrval, GL_FRAGMENT_SHADER);
 	program = glCreateProgram();
 	glAttachShader(program, vshader);
 	glAttachShader(program, fshader);
@@ -448,6 +525,36 @@ static void gl_setup()
 	un_height = glGetUniformLocation(program, "height");
 	un_texsize = glGetUniformLocation(program, "texsize");
 	at_pos = glGetAttribLocation(program, "pos");
+
+	/* overlay */
+	if (o_png) {
+		glGenTextures(1, &o_texture);
+		glBindTexture(GL_TEXTURE_2D, o_texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, O_TEX_WIDTH, O_TEX_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, o_png);
+
+		glGenBuffers(2, o_buffers);
+		glBindBuffer(GL_ARRAY_BUFFER, o_buffers[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(o_vertex_data), o_vertex_data, GL_STATIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o_buffers[1]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(o_element_data), o_element_data, GL_STATIC_DRAW);
+		o_vshader = load_shader("overlay", "overlay.v.glsl", GL_VERTEX_SHADER);
+		o_fshader = load_shader("overlay", "overlay.f.glsl", GL_FRAGMENT_SHADER);
+		o_program = glCreateProgram();
+		glAttachShader(o_program, o_vshader);
+		glAttachShader(o_program, o_fshader);
+		glLinkProgram(o_program);
+		glGetProgramiv(o_program, GL_LINK_STATUS, &link_status);
+		if (!link_status) {
+			fputs("Failed to link shader program\n", stderr);
+			exit(1);
+		}
+		o_un_texture = glGetUniformLocation(o_program, "texture");
+		o_at_pos = glGetAttribLocation(o_program, "pos");
+	}
 }
 
 static void gl_teardown()
@@ -470,6 +577,7 @@ static void render_alloc_surfaces()
 	num_textures = 3;
 	texture_init = 1;
 #ifndef DISABLE_OPENGL
+	load_overlay("overlay.png");
 	if (render_gl) {
 		gl_setup();
 	} else {
@@ -495,6 +603,11 @@ static void free_surfaces(void)
 	free(sdl_textures);
 	sdl_textures = NULL;
 	texture_init = 0;
+
+	if (o_png) {
+		free(o_png);
+		o_png = NULL;
+	}
 }
 
 static char * caption = NULL;
@@ -1792,6 +1905,9 @@ void render_update_display()
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+
 		glUseProgram(program);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, textures[0]);
@@ -1813,6 +1929,26 @@ void render_update_display()
 		glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (void *)0);
 
 		glDisableVertexAttribArray(at_pos);
+
+		/* overlay */
+		if (o_png && stretch_config == CONFIG_ASPECT_4_3) {
+			glUseProgram(o_program);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, o_texture);
+			glUniform1i(o_un_texture, 0);
+
+			int w,h;
+			SDL_GetWindowSize(main_window, &w, &h);
+
+			glBindBuffer(GL_ARRAY_BUFFER, o_buffers[0]);
+			glVertexAttribPointer(o_at_pos, 2, GL_FLOAT, GL_FALSE, sizeof(GLfloat[2]), (void *)0);
+			glEnableVertexAttribArray(o_at_pos);
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, o_buffers[1]);
+			glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (void *)0);
+
+			glDisableVertexAttribArray(o_at_pos);
+		}
 		
 		if (render_ui) {
 			render_ui();

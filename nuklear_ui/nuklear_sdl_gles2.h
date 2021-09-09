@@ -15,7 +15,7 @@
 #ifndef NK_SDL_GLES2_H_
 #define NK_SDL_GLES2_H_
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #ifndef DISABLE_OPENGL
 #ifdef USE_GLES
 #include <SDL_opengles2.h>

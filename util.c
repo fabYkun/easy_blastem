@@ -949,7 +949,7 @@ uint8_t delete_file(char *path)
 
 #ifdef __ANDROID__
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #ifndef IS_LIB
 char *read_bundled_file(char *name, uint32_t *sizeret)
 {

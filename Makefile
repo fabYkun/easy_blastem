@@ -212,10 +212,11 @@ endif
 ifdef NOZLIB
 CFLAGS+= -DDISABLE_ZLIB
 else
-RENDEROBJS+= $(LIBZOBJS) png.o
+CFLAGS+= -DSPNG_STATIC
+RENDEROBJS+= $(LIBZOBJS) png.o spng/spng.o
 endif
 
-MAINOBJS=blastem.o system.o genesis.o debug.o gdb_remote.o vdp.o $(RENDEROBJS) io.o romdb.o hash.o menu.o xband.o \
+MAINOBJS=steamshim_child.o steam_cmd.o blastem.o system.o genesis.o debug.o gdb_remote.o vdp.o $(RENDEROBJS) io.o romdb.o hash.o menu.o xband.o \
 	realtec.o i2c.o nor.o sega_mapper.o multi_game.o megawifi.o $(NET) serialize.o $(TERMINAL) $(CONFIGOBJS) gst.o \
 	$(M68KOBJS) $(TRANSOBJS) $(AUDIOOBJS) saves.o zip.o bindings.o jcart.o gen_player.o
 
@@ -389,4 +390,4 @@ menu.bin : font_interlace_variable.tiles arrow.tiles cursor.tiles button.tiles f
 tmss.md : font.tiles
 
 clean :
-	rm -rf $(ALL) trans ztestrun ztestgen *.o nuklear_ui/*.o zlib/*.o
+	rm -rf $(ALL) trans ztestrun ztestgen *.o nuklear_ui/*.o zlib/*.o spng/*.o

@@ -1,7 +1,7 @@
 #ifndef RENDER_SDL_H_
 #define RENDER_SDL_H_
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 SDL_Window *render_get_window(void);
 typedef void (*event_handler)(SDL_Event *);

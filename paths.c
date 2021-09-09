@@ -22,7 +22,7 @@ static void persist_path(void)
 }
 
 #ifdef __ANDROID__
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <jni.h>
 static char *get_external_storage_path()
 {
