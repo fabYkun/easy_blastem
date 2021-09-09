@@ -50,7 +50,7 @@ tern_node * tern_insert(tern_node * head, char const * key, tern_val value, uint
 	if ((*cur)->valtype == TVAL_PTR) {
 		//not freeing tern nodes can also cause leaks, but handling freeing those here is problematic
 		//since updating a sub-tree may involve creating a new root node
-		free((*cur)->straight.value.ptrval);
+		// free((*cur)->straight.value.ptrval);
 	}
 	(*cur)->straight.value = value;
 	(*cur)->valtype = valtype;
