@@ -1,8 +1,8 @@
 
 attribute vec2 pos;
-varying mediump vec2 texcoord;
-uniform mediump float width, height;
-uniform mediump vec2 texsize;
+varying vec2 texcoord;
+uniform float width, height;
+uniform vec2 texsize;
 
 void main()
 {

@@ -1,0 +1,25 @@
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "The best company"
+      VALUE "FileDescription", "The best game - Desktop version of the old classic Megadrive game"
+      VALUE "FileVersion", "1.0"
+      VALUE "InternalName", "bestgame"
+      VALUE "LegalCopyright", "Copyright 2021 The best company"
+      VALUE "OriginalFilename", "EasyBlastem.exe"
+      VALUE "ProductName", "The best game"
+      VALUE "ProductVersion", "1.0.0"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END
+2 ICON "icons/windows.ico"

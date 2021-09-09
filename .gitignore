@@ -1,0 +1,10 @@
+output/*
+!output/images
+!output/overlay
+!output/SavesDir
+!output/shaders
+!output/default.cfg
+!output/rom.db
+
+sdl/*
+glew/*

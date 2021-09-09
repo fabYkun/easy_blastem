@@ -9,6 +9,7 @@ FIXUP:=true
 BUNDLED_LIBZ:=zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/deflate.o zlib/gzclose.o zlib/gzlib.o zlib/gzread.o\
 	zlib/gzwrite.o zlib/infback.o zlib/inffast.o zlib/inflate.o zlib/inftrees.o zlib/trees.o zlib/uncompr.o zlib/zutil.o
 
+NAME:=EasyBlastem
 ifeq ($(OS),Windows)
 
 GLEW_PREFIX:=glew
@@ -17,6 +18,8 @@ TERMINAL:=terminal_win.o
 FONT:=nuklear_ui/font_win.o
 NET:=net_win.o
 EXE:=.exe
+EXE_PATH:=./output/
+CP:=cp
 SO:=dll
 CPU:=i686
 ifeq ($(CPU),i686)
@@ -25,8 +28,8 @@ WINDRES:=i686-w64-mingw32-windres
 GLUDIR:=Win32
 SDL2_PREFIX:="sdl/i686-w64-mingw32"
 else
-CC:=x86_64-w64-mingw32-gcc-win32
-WINDRES:=x86_64-w64-mingw32-windres
+CC:=x86_64-w64-mingw32-gcc
+WINDRES:=windres
 SDL2_PREFIX:="sdl/x86_64-w64-mingw32"
 GLUDIR:=x64
 endif
@@ -261,7 +264,7 @@ ifdef FONT_PATH
 CFLAGS+= -DFONT_PATH='"'$(FONT_PATH)'"'
 endif
 
-ALL=dis$(EXE) zdis$(EXE) vgmplay$(EXE) blastem$(EXE)
+ALL=dis$(EXE) zdis$(EXE) vgmplay$(EXE) $(NAME)$(EXE)
 ifneq ($(OS),Windows)
 ALL+= termhelper
 endif
@@ -275,9 +278,10 @@ all : $(ALL)
 libblastem.$(SO) : $(LIBOBJS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
-blastem$(EXE) : $(MAINOBJS)
+$(NAME)$(EXE) : $(MAINOBJS)
 	$(CC) -o $@ $^ $(LDFLAGS) $(PROFFLAGS)
 	$(FIXUP) ./$@
+	$(CP) $(NAME)$(EXE)  $(EXE_PATH)
 	
 blastjag$(EXE) : jaguar.o jag_video.o $(RENDEROBJS) serialize.o $(M68KOBJS) $(TRANSOBJS) $(CONFIGOBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
@@ -372,8 +376,8 @@ m68k.c : m68k.cpu cpu_dsl.py
 
 %.bin : %.sz8
 	vasmz80_mot -Fbin -spaces -o $@ $<
-res.o : blastem.rc
-	$(WINDRES) blastem.rc res.o
+res.o : $(NAME).rc
+	$(WINDRES) $(NAME).rc res.o
 
 arrow.tiles : arrow.png
 cursor.tiles : cursor.png
